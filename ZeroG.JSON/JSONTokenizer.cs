@@ -32,10 +32,6 @@ using System.Globalization;
 
 namespace ZeroG.JSON
 {
-    
-
-
-
     /// <summary>
     /// Generates tokens given a valid JSON string (see www.json.org).  
     /// The tokenizer does not validate the JSON constructs contained in the string, but 
