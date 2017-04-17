@@ -71,14 +71,14 @@ namespace ZeroG.JSON
             tokens.MoveNext();
             JSONToken next = tokens.Current;
 
-            while (JSONTokenType.OBJECT_END != next.Type)
+            while (!next.Is(JSONTokenType.OBJECT_END))
             {
                 _ObjectField(tokens, events);
 
                 tokens.MoveNext();
                 next = tokens.Current;
 
-                if (JSONTokenType.COMMA == next.Type)
+                if (next.Is(JSONTokenType.COMMA))
                 {
                     tokens.MoveNext();
                     next = tokens.Current;
@@ -87,7 +87,7 @@ namespace ZeroG.JSON
                 }
             }
 
-            if (JSONTokenType.OBJECT_END == next.Type)
+            if (next.Is(JSONTokenType.OBJECT_END))
             {
                 events?.RaiseObjectEnd();
                 return;
@@ -96,96 +96,7 @@ namespace ZeroG.JSON
                 throw new JSONValidationException("Expected VALUE or end of OBJECT but got: " + next.Type);
         }
 
-        private void _ObjectField(JSONTokenStream tokens, JSONWalkingEvents events)
-        {
-            JSONToken next = tokens.Current;
-
-            if (JSONTokenType.STRING == next.Type)
-            {
-                events?.RaiseObjectKey(next.StrValue);
-
-                tokens.MoveNext();
-                next = tokens.Current;
-                if (JSONTokenType.COLON == next.Type)
-                {
-                    tokens.MoveNext();
-                    next = tokens.Current;
-                    switch (next.Type)
-                    {
-                        case JSONTokenType.STRING:
-                            events?.RaiseString(next.StrValue);
-                            break;
-                        case JSONTokenType.NUMBER:
-                            events?.RaiseNumber(next.NumValue);
-                            break;
-                        case JSONTokenType.KEYWORD_TRUE:
-                            events?.RaiseBoolean(true);
-                            break;
-                        case JSONTokenType.KEYWORD_FALSE:
-                            events?.RaiseBoolean(false);
-                            break;
-                        case JSONTokenType.KEYWORD_NULL:
-                            events?.RaiseNull();
-                            break;
-                        case JSONTokenType.OBJECT_START:
-                            _Object(tokens, events);
-                            break;
-                        case JSONTokenType.ARRAY_START:
-                            _Array(tokens, events);
-                            break;
-                        default:
-                            throw new JSONValidationException("Expected value but got: " + next.Type);
-                    }
-                }
-                else
-                    throw new JSONValidationException("Expected COLON but got: " + next.Type);
-            }
-            else
-                throw new JSONValidationException("Expected STRING but got: " + next.Type);
-        }
-
-        /// <summary>
-        /// Reads an Array.  Fires ArrayStart, ArrayNext, and ArrayEnd.
-        /// </summary>
-        /// <param name="tokens"></param>
-        /// <param name="events"></param>
-        private void _Array(JSONTokenStream tokens, JSONWalkingEvents events)
-        {
-            events?.RaiseArrayStart();
-
-            tokens.MoveNext();
-            JSONToken next = tokens.Current;
-
-            while (JSONTokenType.ARRAY_END != next.Type)
-            {
-                _ArrayElement(tokens, events);
-
-                tokens.MoveNext();
-                next = tokens.Current;
-
-                if (JSONTokenType.COMMA == next.Type)
-                {
-                    tokens.MoveNext();
-                    next = tokens.Current;
-                    events?.RaiseArrayNext();
-                }
-            }
-
-            if (JSONTokenType.ARRAY_END == next.Type)
-            {
-                events?.RaiseArrayEnd();
-                return;
-            }
-            else
-                throw new JSONValidationException("Expected VALUE or end of ARRAY but got: " + next.Type);
-        }
-
-        /// <summary>
-        /// Reads a String, Number, keyword, Object, or Array element within an Array.
-        /// </summary>
-        /// <param name="tokens"></param>
-        /// <param name="events"></param>
-        private void _ArrayElement(JSONTokenStream tokens, JSONWalkingEvents events)
+        private void _DispatchEvent(JSONTokenStream tokens, JSONWalkingEvents events)
         {
             JSONToken next = tokens.Current;
 
@@ -216,6 +127,72 @@ namespace ZeroG.JSON
                     throw new JSONValidationException("Expected value but got: " + next.Type);
             }
         }
+
+        private void _ObjectField(JSONTokenStream tokens, JSONWalkingEvents events)
+        {
+            JSONToken next = tokens.Current;
+
+            if (next.Is(JSONTokenType.STRING))
+            {
+                events?.RaiseObjectKey(next.StrValue);
+
+                tokens.MoveNext();
+                next = tokens.Current;
+                if (next.Is(JSONTokenType.COLON))
+                {
+                    tokens.MoveNext();
+
+                    _DispatchEvent(tokens, events);
+                }
+                else
+                    throw new JSONValidationException("Expected COLON but got: " + next.Type);
+            }
+            else
+                throw new JSONValidationException("Expected STRING but got: " + next.Type);
+        }
+
+        /// <summary>
+        /// Reads an Array.  Fires ArrayStart, ArrayNext, and ArrayEnd.
+        /// </summary>
+        /// <param name="tokens"></param>
+        /// <param name="events"></param>
+        private void _Array(JSONTokenStream tokens, JSONWalkingEvents events)
+        {
+            events?.RaiseArrayStart();
+
+            tokens.MoveNext();
+            JSONToken next = tokens.Current;
+
+            while (!next.Is(JSONTokenType.ARRAY_END))
+            {
+                _ArrayElement(tokens, events);
+
+                tokens.MoveNext();
+                next = tokens.Current;
+
+                if (next.Is(JSONTokenType.COMMA))
+                {
+                    tokens.MoveNext();
+                    next = tokens.Current;
+                    events?.RaiseArrayNext();
+                }
+            }
+
+            if (next.Is(JSONTokenType.ARRAY_END))
+            {
+                events?.RaiseArrayEnd();
+                return;
+            }
+            else
+                throw new JSONValidationException("Expected VALUE or end of ARRAY but got: " + next.Type);
+        }
+
+        /// <summary>
+        /// Reads a String, Number, keyword, Object, or Array element within an Array.
+        /// </summary>
+        /// <param name="tokens"></param>
+        /// <param name="events"></param>
+        private void _ArrayElement(JSONTokenStream tokens, JSONWalkingEvents events) => _DispatchEvent(tokens, events);
         #endregion
 
         /// <summary>

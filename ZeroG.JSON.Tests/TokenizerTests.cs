@@ -179,16 +179,17 @@ namespace ZeroG.JSON.Tests
         public void LargeRecurse()
         {
             var tempFile = Path.GetTempFileName();
+            int size = 5_000_000;
             try
             {
                 using (var fs = new FileStream(tempFile, FileMode.Append))
                 {
-                    for (int i = 0; 500000 > i; i++)
+                    for (int i = 0; i < size; i++)
                     {
                         byte[] buf = Encoding.UTF8.GetBytes("{\"k" + i + "\" : ");
                         fs.Write(buf, 0, buf.Length);
                     }
-                    for (int i = 0; 500000 > i; i++)
+                    for (int i = 0; i < size; i++)
                     {
                         byte[] buf = Encoding.UTF8.GetBytes("}");
                         fs.Write(buf, 0, buf.Length);
@@ -203,12 +204,10 @@ namespace ZeroG.JSON.Tests
                     int count = 0;
                     foreach (var t in tok)
                     {
-                        if (JSONTokenType.OBJECT_START == t.Type)
-                        {
+                        if (t.Is(JSONTokenType.OBJECT_START))
                             ++count;
-                        }
                     }
-                    Assert.AreEqual(500000, count);
+                    Assert.AreEqual(size, count);
                 }
             }
             finally
